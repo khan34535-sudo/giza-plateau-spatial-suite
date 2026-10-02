@@ -31,13 +31,7 @@
   <h2>Local Installation & Usage</h2>
   <p>This project is fully self-contained in a single HTML file for lightweight deployment and local testing.</p>
   <ol>
-    <li>Clone or download the repository:
-      <pre><code>git clone https://github.com/your-username/giza-sphinx-matrix.git</code></pre>
-    </li>
-    <li>Open <code>index.html</code> directly in any modern web browser, or run a local development server:
-      <pre><code>npx serve .</code></pre>
-    </li>
-  </ol>
+   
 
   <h2>Academic References & Attribution</h2>
   <ul>

@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="antique">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giza Sphinx: Stratigraphic Matrix & Dual Aesthetic Suite</title>
+    <!-- Leaflet CSS for Map Integration -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        /* --- THEME VARIABLES --- */
+        :root {
+            /* Default: Antique Rustic Theme */
+            --bg-current: #14110e;
+            --panel-bg: rgba(22, 19, 15, 0.94);
+            --border-theme: rgba(184, 115, 51, 0.4);
+            --accent-primary: #d97706;
+            --accent-secondary: #e6c594;
+            --accent-glow: #fbbf24;
+            --text-main: #f5f2eb;
+            --text-muted: #b8a99a;
+            --font-main: "Georgia", "Times New Roman", serif;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        [data-theme="futuristic"] {
+            --bg-current: #030508;
+            --panel-bg: rgba(8, 12, 20, 0.95);
+            --border-theme: rgba(0, 243, 255, 0.35);
+            --accent-primary: #00f3ff;
+            --accent-secondary: #f59e0b;
+            --accent-glow: #00f3ff;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--bg-current);
+            font-family: var(--font-main);
+            color: var(--text-main);
+            transition: background-color 0.4s ease;
+        }
+
+        #app-layout {
+            display: grid;
+            grid-template-columns: 1fr 460px;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* 3D Viewport Side (Left) */
+        #viewport-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+
+        #webgl-container {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Right-hand Sidebar Panel */
+        .sidebar-panel {
+            background: var(--panel-bg);
+            border-left: 1px solid var(--border-theme);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            z-index: 20;
+            overflow-y: auto;
+            padding: 22px;
+            box-sizing: border-box;
+            box-shadow: -10px 0 40px rgba(0,0,0,0.8);
+            transition: background 0.4s ease, border-color 0.4s ease;
+        }
+
+        .sidebar-panel h3 {
+            margin: 0 0 10px 0;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent-glow);
+            border-bottom: 1px solid var(--border-theme);
+            padding-bottom: 6px;
+        }
+
+        /* Aesthetic Theme Switcher Box */
+        .theme-switcher-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        /* Control Box */
+        .control-box {
+            background: rgba(184, 115, 51, 0.05);
+            border: 1px solid var(--border-theme);
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 14px;
+        }
+
+        [data-theme="futuristic"] .control-box {
+            background: rgba(0, 243, 255, 0.04);
+        }
+
+        .control-box label {
+            display: block;
+            font-size: 0.72rem;
+            color: var(--accent-glow);
+            font-family: var(--font-mono);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-primary);
+            cursor: pointer;
+            background: transparent;
+        }
+
+        .era-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.58rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            margin-top: 6px;
+        }
+
+        .audio-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .audio-row button {
+            flex: 1;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.76rem;
+            border-bottom: 1px dashed var(--border-theme);
+            padding-bottom: 5px;
+        }
+
+        .data-label { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.68rem; }
+        .data-value { font-weight: 400; color: var(--text-main); text-align: right; max-width: 230px; }
+
+        .synopsis-box {
+            margin-top: 10px;
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            background: rgba(184, 115, 51, 0.04);
+            padding: 12px;
+            border-left: 2px solid var(--accent-primary);
+            border-radius: 0 4px 4px 0;
+            font-style: italic;
+        }
+
+        [data-theme="futuristic"] .synopsis-box {
+            background: rgba(0, 243, 255, 0.03);
+            font-style: normal;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        button {
+            background: rgba(184, 115, 51, 0.1);
+            border: 1px solid var(--border-theme);
+            color: var(--accent-secondary);
+            padding: 8px 10px;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            border-radius: 3px;
+            font-family: var(--font-mono);
+        }
+
+        [data-theme="futuristic"] button {
+            background: rgba(0, 243, 255, 0.08);
+            color: var(--accent-primary);
+        }
+
+        button:hover {
+            background: var(--accent-primary);
+            color: #14110e;
+            font-weight: 700;
+            border-color: var(--accent-glow);
+            box-shadow: 0 0 15px var(--border-theme);
+        }
+
+        [data-theme="futuristic"] button:hover {
+            color: #030508;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.5);
+        }
+
+        button.active {
+            background: var(--accent-primary);
+            color: #14110e;
+            font-weight: 700;
+            border-color: var(--accent-glow);
+        }
+
+        [data-theme="futuristic"] button.active {
+            color: #030508;
+        }
+
+        /* APA REFERENCES SECTION STYLING */
+        .references-box {
+            margin-top: 18px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-theme);
+            font-size: 0.64rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+            font-family: var(--font-mono);
+        }
+
+        .references-box p {
+            margin: 0 0 6px 0;
+        }
+
+        .references-box ul {
+            margin: 0;
+            padding-left: 14px;
+        }
+
+        .references-box li {
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+
+        .references-box a {
+            color: var(--accent-secondary);
+            text-decoration: none;
+        }
+
+        .references-box a:hover {
+            text-decoration: underline;
+        }
+
+        /* FLOATING MAP WIDGET */
+        #map-floating-container {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            width: 380px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-theme);
+            border-radius: 6px;
+            padding: 12px;
+            z-index: 10;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.7);
+            transition: background 0.4s ease, border-color 0.4s ease;
+        }
+
+        #map-floating-container h3 {
+            margin: 0 0 8px 0;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent-glow);
+            border-bottom: 1px solid var(--border-theme);
+            padding-bottom: 5px;
+            font-family: var(--font-mono);
+        }
+
+        #map {
+            width: 100%;
+            height: 180px;
+            border-radius: 4px;
+            border: 1px solid var(--border-theme);
+            background: #0d0b09;
+        }
+
+        [data-theme="antique"] #map { filter: sepia(35%) contrast(110%); }
+        [data-theme="futuristic"] #map { filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(120%); }
+
+        /* HUD Overlay Headers */
+        header {
+            position: absolute;
+            top: 20px;
+            left: 24px;
+            z-index: 10;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-theme);
+            padding: 14px 22px;
+            backdrop-filter: blur(10px);
+            border-radius: 4px;
+            max-width: 410px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+            transition: background 0.4s ease, border-color 0.4s ease;
+        }
+
+        header h1 {
+            margin: 0 0 4px 0;
+            font-size: 0.95rem;
+            letter-spacing: 0.12em;
+            color: var(--accent-glow);
+            text-transform: uppercase;
+        }
+
+        header p {
+            margin: 0;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .instructions {
+            position: absolute;
+            top: 110px;
+            left: 24px;
+            z-index: 10;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-theme);
+            padding: 8px 14px;
+            font-size: 0.68rem;
+            color: var(--accent-secondary);
+            border-radius: 4px;
+            backdrop-filter: blur(10px);
+            font-family: var(--font-mono);
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-current); }
+        ::-webkit-scrollbar-thumb { background: var(--border-theme); border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+    <div id="app-layout">
+        <!-- LEFT: 3D VIEWPORT WITH FLOATING MAP IN BOTTOM-LEFT -->
+        <div id="viewport-container">
+            <header>
+                <h1 id="header-title">Sphinx Antique Stratigraphic Matrix</h1>
+                <p>Dynastic Chronology, Desert Sands & Oracle Resonance</p>
+            </header>
+            <div class="instructions">
+                [Orbit: Left Drag] &nbsp;|&nbsp; [Zoom: Scroll] &nbsp;|&nbsp; [Click Nodes]
+            </div>
+
+            <div id="webgl-container"></div>
+
+            <!-- Geospatial Telemetry Floating Widget -->
+            <div id="map-floating-container">
+                <h3>Geospatial Telemetry (Map Archive)</h3>
+                <div id="map"></div>
+            </div>
+        </div>
+
+        <!-- RIGHT: SCHOLARLY DATA, TIME & AUDIO CONTROLS -->
+        <div class="sidebar-panel">
+            <h3>Visual Aesthetic Mode</h3>
+            <div class="theme-switcher-grid">
+                <button id="themeAntique" class="active" onclick="setAestheticTheme('antique')">Antique Rustic</button>
+                <button id="themeFuturistic" onclick="setAestheticTheme('futuristic')">Cyber Futuristic</button>
+            </div>
+
+            <div class="control-box">
+                <label id="era-title-display">Era: 01. Old Kingdom (c. 2500 BCE)</label>
+                <input type="range" id="eraSlider" min="0" max="3" value="0" step="1" oninput="updateStratigraphicEra(this.value)">
+                <div class="era-labels">
+                    <span>Old Kingdom</span>
+                    <span>New Kingdom</span>
+                    <span>Medieval</span>
+                    <span>Modern</span>
+                </div>
+            </div>
+
+            <div class="control-box" style="margin-bottom: 12px;">
+                <label>Acoustic Soundscape & Oracle Voice</label>
+                <div class="audio-row">
+                    <button id="windBtn" onclick="toggleWindSoundscape()">Desert Wind: OFF</button>
+                    <button onclick="triggerOracleResonance()">Play Oracle Echo</button>
+                </div>
+            </div>
+
+            <h3>Chronicle & Node Analysis</h3>
+            <div class="data-row">
+                <span class="data-label">Selected Node:</span>
+                <span class="data-value" id="sel-name">The Great Sphinx Enclosure</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Stratigraphy / Burial:</span>
+                <span class="data-value" id="sel-burials">Workers' Village & 4th Dynasty Quarries</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Cultural Folklore:</span>
+                <span class="data-value" id="sel-lore">Horemakhet / Solar Resurrection Deity</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Historical Event:</span>
+                <span class="data-value" id="sel-event">Initial Carving & Mortuary Alignment</span>
+            </div>
+
+            <div class="synopsis-box" id="sel-synopsis">
+                During the Old Kingdom, the Sphinx was freshly carved from core limestone during the reign of Khafre, brightly plastered and painted in ceremonial ochres, serving as an eternal guardian for images and the royal pyramid complex.
+            </div>
+
+            <div class="nav-grid">
+                <button onclick="selectHotspot('sphinx')">Sphinx Monolith</button>
+                <button onclick="selectHotspot('burials')">Workers' Necropolis</button>
+                <button onclick="selectHotspot('folklore')">Folklore & Oracle</button>
+                <button onclick="selectHotspot('iconoclasm')">1378 AD Iconoclasm</button>
+            </div>
+
+            <!-- APA REFERENCES SECTION -->
+            <div class="references-box">
+                <p><strong>APA References:</strong></p>
+                <ul>
+                    <li>Sketchfab. (n.d.). <em>Sphinx</em> [3D Model]. Retrieved October 2, 2026, from <a href="https://sketchfab.com/3d-models/sphinx-5b23879c6b4a499bbd288244f069d06a" target="_blank">https://sketchfab.com/3d-models/sphinx-5b23879c6b4a499bbd288244f069d06a</a></li>
+                    <li>Lehner, M. (1997). <em>The Complete Pyramids: Solving the Ancient Mysteries</em>. Thames & Hudson.</li>
+                    <li>Three.js contributors. (2026). <em>Three.js JavaScript 3D Library</em> (r128) [Computer software]. <a href="https://threejs.org" target="_blank">https://threejs.org</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js, OrbitControls & Leaflet CDN Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // --- 1. THEME SWITCHER LOGIC ---
+        let currentTheme = 'antique';
+
+        function setAestheticTheme(theme) {
+            currentTheme = theme;
+            document.documentElement.setAttribute('data-theme', theme);
+
+            document.getElementById('themeAntique').classList.toggle('active', theme === 'antique');
+            document.getElementById('themeFuturistic').classList.toggle('active', theme === 'futuristic');
+
+            if (theme === 'antique') {
+                document.getElementById('header-title').innerText = "Sphinx Antique Stratigraphic Matrix";
+                scene.background.setHex(0x14110e);
+                scene.fog.color.setHex(0x14110e);
+                ambientLight.color.setHex(0x4a3b2c);
+                gridHelper.material.color.setHex(0xd97706);
+            } else {
+                document.getElementById('header-title').innerText = "Sphinx Time Matrix & Telemetry";
+                scene.background.setHex(0x030508);
+                scene.fog.color.setHex(0x030508);
+                ambientLight.color.setHex(0x1e293b);
+                gridHelper.material.color.setHex(0x00f3ff);
+            }
+            setTimeout(() => { map.invalidateSize(); }, 200);
+        }
+        window.setAestheticTheme = setAestheticTheme;
+
+        // --- 2. WEB AUDIO API SYNTHESIS ---
+        let audioCtx = null;
+        let windNode = null;
+        let windGain = null;
+        let isWindPlaying = false;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function toggleWindSoundscape() {
+            initAudioContext();
+            const btn = document.getElementById('windBtn');
+
+            if (!isWindPlaying) {
+                const bufferSize = audioCtx.sampleRate * 2;
+                const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const output = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+
+                windNode = audioCtx.createBufferSource();
+                windNode.buffer = noiseBuffer;
+                windNode.loop = true;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 160;
+                filter.Q.value = 2.5;
+
+                const lfo = audioCtx.createOscillator();
+                lfo.frequency.value = 0.15;
+                const lfoGain = audioCtx.createGain();
+                lfoGain.gain.value = 100;
+                lfo.connect(lfoGain);
+                lfoGain.connect(filter.frequency);
+                lfo.start();
+
+                windGain = audioCtx.createGain();
+                windGain.gain.value = 0.22;
+
+                windNode.connect(filter);
+                filter.connect(windGain);
+                windGain.connect(audioCtx.destination);
+                windNode.start();
+
+                isWindPlaying = true;
+                btn.innerText = "Desert Wind: ON";
+                btn.classList.add('active');
+            } else {
+                if (windNode) {
+                    windNode.stop();
+                    windNode.disconnect();
+                }
+                isWindPlaying = false;
+                btn.innerText = "Desert Wind: OFF";
+                btn.classList.remove('active');
+            }
+        }
+        window.toggleWindSoundscape = toggleWindSoundscape;
+
+        function triggerOracleResonance() {
+            initAudioContext();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const delay = audioCtx.createDelay();
+
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(58.27, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(29.14, audioCtx.currentTime + 3.5);
+
+            gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 4.5);
+
+            delay.delayTime.value = 0.4;
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.connect(delay);
+            delay.connect(gain);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 4.5);
+        }
+        window.triggerOracleResonance = triggerOracleResonance;
+
+        // --- 3. RESEARCH & ERAS DATABASE ---
+        const hotspotDB = {
+            sphinx: {
+                name: "The Great Sphinx Core & Silhouette",
+                burials: "Embedded within Khafre's royal mortuary layout.",
+                lore: "Symbolizes divine kingship and solar awakening (Horemakhet).",
+                event: "Carved from nummulitic limestone bedrock.",
+                synopsis: "Carved directly from foundational limestone bedrock, merging a regal human visage with a powerful recumbent lion frame.",
+                coords: [29.9753, 31.1376],
+                pos: [0, 2, 0]
+            },
+            burials: {
+                name: "The Giza Workers' Village & Mastabas",
+                burials: "Excavated by Mark Lehner south-east of the enclosure.",
+                lore: "Honored builders with beer jars, bread molds, and medical care.",
+                event: "Old Kingdom administrative state provisioning.",
+                synopsis: "The surrounding necropolis housed the supervisors, bakers, and stonemasons who engineered the Giza plateau monuments.",
+                coords: [29.9720, 31.1410],
+                pos: [-12, 1, -8]
+            },
+            folklore: {
+                name: "Medieval Folklore: Talisman & Oracle",
+                burials: "Chronicled by Al-Maqrizi and Al-Idrisi.",
+                lore: "Referred to as 'Abū al-Hawl' (Father of Terror) and Nile flood gauge.",
+                event: "16th-century reports of a crown cavity used for oracle pronouncements.",
+                synopsis: "Medieval populations viewed the monument as a cosmic weather talisman governing agricultural cycles and regional political fortunes.",
+                coords: [29.9755, 31.1375],
+                pos: [0, 4.5, 3]
+            },
+            iconoclasm: {
+                name: "1378 AD Iconoclasm & Curse of the Sands",
+                burials: "Recorded in Islamic historical chronicles.",
+                lore: "Sufi ascetic Muhammad Sa'im al-Dahr disfigured the face to protest agrarian offerings.",
+                event: "Retributive sand dunes swept over fields, inspiring local legends.",
+                synopsis: "A historic turning point where religious iconoclasm collided with deep-seated folk beliefs regarding environmental guardianship.",
+                coords: [29.9752, 31.1378],
+                pos: [0, 3.2, 4]
+            }
+        };
+
+        const eraData = [
+            {
+                title: "Era: 01. Old Kingdom (c. 2500 BCE)",
+                sandLevel: -1.0,
+                desc: "During the Old Kingdom, the Sphinx was freshly carved, covered in fine plaster, and painted brilliantly with red and yellow ochre. It stood as a pristine solar deity overlooking active pyramid workshops."
+            },
+            {
+                title: "Era: 02. New Kingdom (c. 1400 BCE)",
+                sandLevel: 0.2,
+                desc: "Partially choked by desert sands, Prince Thutmose IV cleared the enclosure and erected the granite Dream Stele between the massive front paws following a nocturnal divine revelation."
+            },
+            {
+                title: "Era: 03. Medieval Era (c. 1378 CE)",
+                sandLevel: 1.2,
+                desc: "Known as 'Abū al-Hawl', farmers left agrarian offerings here to regulate the Nile flood. Following the 1378 AD iconoclastic attack by Muhammad Sa'im al-Dahr, local legends warned of the 'Curse of the Sands'."
+            },
+            {
+                title: "Era: 04. Modern Conservation (Present)",
+                sandLevel: -0.5,
+                desc: "The current scientific era features modern limestone masonry restorations, laser photogrammetry, seismic testing, and continuous preservation against saline groundwater crystallization."
+            }
+        ];
+
+        // --- 4. LEAFLET MAP INITIALIZATION ---
+        const map = L.map('map', {
+            zoomControl: false,
+            attributionControl: false
+        }).setView([29.9753, 31.1376], 17);
+
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19
+        }).addTo(map);
+
+        const marker = L.marker([29.9753, 31.1376]).addTo(map);
+
+        function updateMapLocation(lat, lng, name) {
+            map.setView([lat, lng], 17, { animate: true, duration: 1000 });
+            marker.setLatLng([lat, lng]);
+            marker.bindPopup(`<b>${name}</b><br>Giza Plateau, Egypt`).openPopup();
+        }
+
+        // --- 5. THREE.JS 3D SCENERY SETUP ---
+        const container = document.getElementById('webgl-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x14110e);
+        scene.fog = new THREE.FogExp2(0x14110e, 0.022);
+
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(25, 12, 28);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.01;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x4a3b2c, 1.6);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xffedd5, 2.0);
+        sunLight.position.set(30, 40, 20);
+        scene.add(sunLight);
+
+        const warmPoint = new THREE.PointLight(0xd97706, 1.8, 50);
+        warmPoint.position.set(-20, 15, -20);
+        scene.add(warmPoint);
+
+        // Grid Floor
+        const gridHelper = new THREE.GridHelper(80, 40, 0xd97706, 0x33271d);
+        gridHelper.position.y = -1.02;
+        scene.add(gridHelper);
+
+        // Sand Dune Mesh
+        const sandGeo = new THREE.BoxGeometry(22, 2.2, 22);
+        const sandMat = new THREE.MeshStandardMaterial({ color: 0xc29b38, roughness: 0.95 });
+        const sandMesh = new THREE.Mesh(sandGeo, sandMat);
+        sandMesh.position.set(0, -1, 0);
+        scene.add(sandMesh);
+
+        // --- 6. DETAILED SPHINX MONUMENT SCULPTURE ---
+        const interactiveHotspots = [];
+        const sphinxGroup = new THREE.Group();
+        const stoneMat = new THREE.MeshStandardMaterial({ color: 0xd99538, roughness: 0.82 });
+        const darkStoneMat = new THREE.MeshStandardMaterial({ color: 0xb57322, roughness: 0.88 });
+
+        // Recumbent Lion Body
+        const bodyGeo = new THREE.BoxGeometry(5.2, 3.4, 11.5);
+        const bodyMesh = new THREE.Mesh(bodyGeo, stoneMat);
+        bodyMesh.position.set(0, 1.7, 0);
+        bodyMesh.userData = { id: 'sphinx' };
+        sphinxGroup.add(bodyMesh);
+        interactiveHotspots.push(bodyMesh);
+
+        // Front Paws
+        const pawLeft = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.2, 4.2), darkStoneMat);
+        pawLeft.position.set(1.6, 0.6, 6.2);
+        pawLeft.userData = { id: 'sphinx' };
+        sphinxGroup.add(pawLeft);
+        interactiveHotspots.push(pawLeft);
+
+        const pawRight = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.2, 4.2), darkStoneMat);
+        pawRight.position.set(-1.6, 0.6, 6.2);
+        pawRight.userData = { id: 'sphinx' };
+        sphinxGroup.add(pawRight);
+        interactiveHotspots.push(pawRight);
+
+        // Chest / Neck
+        const neckGeo = new THREE.BoxGeometry(3.2, 2.8, 3.2);
+        const neckMesh = new THREE.Mesh(neckGeo, stoneMat);
+        neckMesh.position.set(0, 3.8, 3.6);
+        neckMesh.userData = { id: 'sphinx' };
+        sphinxGroup.add(neckMesh);
+        interactiveHotspots.push(neckMesh);
+
+        // Pharaonic Head & Nemes Headdress
+        const headGeo = new THREE.BoxGeometry(2.8, 3.2, 2.8);
+        const headMesh = new THREE.Mesh(headGeo, stoneMat);
+        headMesh.position.set(0, 6.6, 3.8);
+        headMesh.userData = { id: 'folklore' };
+        sphinxGroup.add(headMesh);
+        interactiveHotspots.push(headMesh);
+
+        // Nemes Headdress Flaps (Left & Right)
+        const flapLeft = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.2, 2.4), darkStoneMat);
+        flapLeft.position.set(1.6, 6.4, 3.8);
+        flapLeft.userData = { id: 'iconoclasm' };
+        sphinxGroup.add(flapLeft);
+        interactiveHotspots.push(flapLeft);
+
+        const flapRight = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3.2, 2.4), darkStoneMat);
+        flapRight.position.set(-1.6, 6.4, 3.8);
+        flapRight.userData = { id: 'iconoclasm' };
+        sphinxGroup.add(flapRight);
+        interactiveHotspots.push(flapRight);
+
+        scene.add(sphinxGroup);
+
+        // Workers' Necropolis Tombs
+        const tombsGroup = new THREE.Group();
+        const tombMat = new THREE.MeshStandardMaterial({ color: 0x574332, roughness: 0.8 });
+        for(let i = 0; i < 5; i++) {
+            const tomb = new THREE.Mesh(new THREE.BoxGeometry(2, 1.2, 3), tombMat);
+            tomb.position.set(-14 + (i * 2.5), 0.6, -10 + (i % 2 * 3));
+            tomb.userData = { id: 'burials' };
+            tombsGroup.add(tomb);
+            interactiveHotspots.push(tomb);
+        }
+        scene.add(tombsGroup);
+
+        // --- 7. STRATIGRAPHIC ERA SLIDER LOGIC ---
+        function updateStratigraphicEra(val) {
+            const era = eraData[val];
+            document.getElementById('era-title-display').innerText = era.title;
+            document.getElementById('sel-synopsis').innerText = era.desc;
+            sandMesh.position.y = era.sandLevel;
+        }
+        window.updateStratigraphicEra = updateStratigraphicEra;
+
+        // --- 8. HOTSPOT SELECTION & INTERACTION ---
+        function selectHotspot(id) {
+            const data = hotspotDB[id];
+            if (!data) return;
+
+            document.getElementById('sel-name').innerText = data.name;
+            document.getElementById('sel-burials').innerText = data.burials;
+            document.getElementById('sel-lore').innerText = data.lore;
+            document.getElementById('sel-event').innerText = data.event;
+
+            if (id === 'folklore') {
+                triggerOracleResonance();
+            }
+
+            updateMapLocation(data.coords[0], data.coords[1], data.name);
+            smoothCameraTransition(data.pos[0] + 12, data.pos[1] + 6, data.pos[2] + 15, data.pos[0], data.pos[1], data.pos[2]);
+        }
+        window.selectHotspot = selectHotspot;
+
+        window.addEventListener('click', (event) => {
+            const rect = renderer.domElement.getBoundingClientRect();
+            if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
+
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(interactiveHotspots, true);
+
+            if (intersects.length > 0) {
+                let hitObject = intersects[0].object;
+                while (hitObject && (!hitObject.userData || !hitObject.userData.id) && hitObject.parent) {
+                    hitObject = hitObject.parent;
+                }
+                if (hitObject && hitObject.userData && hitObject.userData.id) {
+                    selectHotspot(hitObject.userData.id);
+                } else {
+                    selectHotspot('sphinx');
+                }
+            }
+        });
+
+        function smoothCameraTransition(px, py, pz, tx, ty, tz) {
+            const startCamPos = camera.position.clone();
+            const targetCamPos = new THREE.Vector3(px, py, pz);
+            const startTarget = controls.target.clone();
+            const targetTarget = new THREE.Vector3(tx, ty, tz);
+
+            let progress = 0;
+            function step() {
+                progress += 0.05;
+                if (progress <= 1) {
+                    camera.position.lerpVectors(startCamPos, targetCamPos, progress);
+                    controls.target.lerpVectors(startTarget, targetTarget, progress);
+                    controls.update();
+                    requestAnimationFrame(step);
+                }
+            }
+            step();
+        }
+
+        window.addEventListener('resize', () => {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+            map.invalidateSize();
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
